@@ -4,16 +4,22 @@ using { cappo.cds } from '../db/CDSViews';
 
 
 
-service CatalogService @(path: 'CatalogService') {
+service CatalogService @(path: 'CatalogService', requires: 'authenticated-user') {
 
 
-    entity EmployeeSet as projection on master.employees;
+
+
+    entity EmployeeSet
+            @(restrict: [
+                { grant: 'READ', to:'Viewer', where: 'bankName = $user.BankName' },
+                { grant: 'WRITE', to:'Admin' }
+            ])
+     as projection on master.employees;
     entity AddressSet as projection on master.address;
     entity businesspartner as projection on master.businesspartner;
     entity ProductSet as projection on master.product;
-     entity POs @( odata.draft.enabled: true,
-      Common.DefaultValuesFunction: 'loadInitials') as projection on 
-     transaction.purchaseorder{
+    entity POs @( odata.draft.enabled: true,
+                  Common.DefaultValuesFunction: 'loadInitials' ) as projection on transaction.purchaseorder{
         *,
         case OVERALL_STATUS
             when 'N' then 'New'
@@ -32,15 +38,23 @@ service CatalogService @(path: 'CatalogService') {
     }
     //instance bound action
     actions{
+        @Common.SideEffects: {
+            TargetProperties : [
+                'in/GROSS_AMOUNT'
+            ],
+        }
         action boost() returns POs;
     };
     entity POItems as projection on transaction.poitems;
-
- function loadInitials() returns POs;
-
+    function loadInitials() returns POs;
     function getLargestOrder() returns POs;
     //entity CDSSet as projection on cds.CDSViews.ProductView;
 
-
 }
+
+
+
+
+
+
 
